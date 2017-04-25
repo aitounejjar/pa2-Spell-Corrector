@@ -10,32 +10,32 @@ import java.util.Scanner;
  * of errors that occur in our dataset of queries, and use this to compute P(R|Q).
  */
 public class EmpiricalCostModel implements EditCostModel {
-	private static final long serialVersionUID = 1L;
-	
-  public EmpiricalCostModel(String editsFile) throws IOException {
-    BufferedReader input = new BufferedReader(new FileReader(editsFile));
-    System.out.println("Constructing edit distance map...");
-    String line = null;
-    while ((line = input.readLine()) != null) {
-      Scanner lineSc = new Scanner(line);
-      lineSc.useDelimiter("\t");
-      String noisy = lineSc.next();
-      String clean = lineSc.next();
+    private static final long serialVersionUID = 1L;
+
+    public EmpiricalCostModel(String editsFile) throws IOException {
+        BufferedReader input = new BufferedReader(new FileReader(editsFile));
+        System.out.println("Constructing edit distance map...");
+        String line = null;
+        while ((line = input.readLine()) != null) {
+            Scanner lineSc = new Scanner(line);
+            lineSc.useDelimiter("\t");
+            String noisy = lineSc.next();
+            String clean = lineSc.next();
       /*
        * TODO: Your code here
        */
+        }
+
+        input.close();
+        System.out.println("Done.");
     }
 
-    input.close();
-    System.out.println("Done.");
-  }
-
-  // You need to add code for this interface method to calculate the proper empirical cost.
-  @Override
-  public double editProbability(String original, String R, int distance) {
-    return 0.5;
+    // You need to add code for this interface method to calculate the proper empirical cost.
+    @Override
+    public double editProbability(String original, String R, int distance) {
+        return 0.5;
     /*
      * TODO: Your code here
      */
-  }
+    }
 }

@@ -2,39 +2,38 @@ package edu.stanford.cs276;
 
 public class BuildModels {
 
-  public static double MU = .05;
-  public static LanguageModel languageModel;
-  public static NoisyChannelModel noisyChannelModel;
+    public static double MU = .05;
+    public static LanguageModel languageModel;
+    public static NoisyChannelModel noisyChannelModel;
 
-  public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-    String trainingCorpus = null;
-    String editsFile = null;
-    String extra = null;
-    if (args.length == 2 || args.length == 3) {
-      trainingCorpus = args[0];
-      editsFile = args[1];
-      if (args.length == 3) extra = args[2];
-    } 
-    else {
-      System.err.println(
-          "Invalid arguments.  Argument count must 2 or 3 \n" 
-          + "./buildmodels <training corpus dir> <training edit1s file> \n"
-          + "./buildmodels <training corpus dir> <training edit1s file> <extra> \n"
-          + "SAMPLE: ./buildmodels data/corpus data/edit1s.txt \n"
-          + "SAMPLE: ./buildmodels data/corpus data/edit1s.txt extra \n");
-      return;
-    }
-    System.out.println("training corpus: " + args[0]);
+        String trainingCorpus = null;
+        String editsFile = null;
+        String extra = null;
+        if (args.length == 2 || args.length == 3) {
+            trainingCorpus = args[0];
+            editsFile = args[1];
+            if (args.length == 3) extra = args[2];
+        } else {
+            System.err.println(
+                    "Invalid arguments.  Argument count must 2 or 3 \n"
+                            + "./buildmodels <training corpus dir> <training edit1s file> \n"
+                            + "./buildmodels <training corpus dir> <training edit1s file> <extra> \n"
+                            + "SAMPLE: ./buildmodels data/corpus data/edit1s.txt \n"
+                            + "SAMPLE: ./buildmodels data/corpus data/edit1s.txt extra \n");
+            return;
+        }
+        System.out.println("training corpus: " + args[0]);
 
-    languageModel = LanguageModel.create(trainingCorpus);
-    noisyChannelModel = NoisyChannelModel.create(editsFile);
+        languageModel = LanguageModel.create(trainingCorpus);
+        noisyChannelModel = NoisyChannelModel.create(editsFile);
 
-    // Save the models to disk
-    noisyChannelModel.save();
-    languageModel.save();
+        // Save the models to disk
+        noisyChannelModel.save();
+        languageModel.save();
 
-    if ("extra".equals(extra)) {
+        if ("extra".equals(extra)) {
       /*
        * If you want to experiment with some form of extra credit in the 
        * model-building process, you can add code to this block.  You should 
@@ -48,6 +47,6 @@ public class BuildModels {
        * 2. When you run the scripts WITH the 'extra' parameter, your extra 
        * credit code runs as expected. 
        */
+        }
     }
-  }
 }

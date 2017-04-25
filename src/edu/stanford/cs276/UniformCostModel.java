@@ -6,12 +6,12 @@ package edu.stanford.cs276;
  * i.e., having the same probability
  */
 public class UniformCostModel implements EditCostModel {
-	
-	private static final long serialVersionUID = 1L;
-	
-  @Override
-  public double editProbability(String original, String R, int distance) {
-    return 0.5;
-    // TODO: Your code here
-  }
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public double editProbability(String original, String R, int distance) {
+        return 0.5;
+        // TODO: Your code here
+    }
 }
