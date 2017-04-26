@@ -33,4 +33,8 @@ public class Dictionary implements Serializable {
             return 0;
         }
     }
+
+    public HashMap<String, Integer> map() {
+        return map;
+    }
 }

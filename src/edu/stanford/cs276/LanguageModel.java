@@ -10,6 +10,8 @@ import java.io.FileReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * LanguageModel class constructs a language model from the training corpus.
@@ -23,7 +25,17 @@ public class LanguageModel implements Serializable {
     private static final long serialVersionUID = 1L;
     private static LanguageModel lm_;
 
-    Dictionary unigram = new Dictionary();
+    Dictionary unigrams = new Dictionary();
+    Dictionary bigrams = new Dictionary();
+
+    // counts the total number of terms in the corpus
+    private int termCounter = 1;
+
+    // maps to store probabilities of unigrams and bigrams
+    private Map<String, Double> unigramProbabilities = new HashMap<>();
+    private Map<String, Double> bigramProbabilities  = new HashMap<>();
+
+    private static final double LAMBDA = 0.1;
 
   /*
    * Feel free to add more members here (e.g., a data structure that stores bigrams)
@@ -61,16 +73,73 @@ public class LanguageModel implements Serializable {
             System.out.printf("Reading data file %s ...\n", file.getName());
             BufferedReader input = new BufferedReader(new FileReader(file));
             String line = null;
+
+            System.out.println(file.getName() + "----------------------------------- ");
             while ((line = input.readLine()) != null) {
-        /*
-         * Remember: each line is a document (refer to PA2 handout)
-         * TODO: Your code here
-         */
-                unigram.add("cs276");
+
+                if (line.isEmpty()) {
+                    continue;
+                }
+
+                /*
+                 * Remember: each line is a document (refer to PA2 handout)
+                 * TODO: Your code here
+                 */
+
+                String[] words = line.trim().split("\\s+");
+                String previousWord = words[0];
+                unigrams.add(previousWord);
+
+                for (int i=1; i<words.length; ++i) {
+                    String w = words[i];
+                    unigrams.add(w);
+
+                    String bigram = previousWord + " " + w ;
+
+                    bigrams.add(bigram);
+
+                    previousWord = w;
+                }
+
             }
             input.close();
         }
+
+        computeUnigramProbabilities();
+        computeBigramProbabilities();
+
         System.out.println("Done.");
+    }
+
+    private void computeUnigramProbabilities() {
+        HashMap<String, Integer> map = unigrams.map();
+        int t = unigrams.termCount();
+        for (String w : map.keySet()) {
+            int wCount = map.get(w);
+            double p = Math.log(wCount) - Math.log(t);
+            unigramProbabilities.put(w, p);
+        }
+    }
+
+    private void computeBigramProbabilities() {
+        HashMap<String, Integer> map = bigrams.map();
+        for (String w1w2 : map.keySet()) {
+
+            String[] pair = w1w2.split("\\s+");
+
+            String w1 = pair[0];
+            String w2 = pair[1];
+
+            // compute the bigram's probability
+            int w1w2Count = map.get(w1w2);
+            int w1Count = unigrams.map().get(w1);
+            double p = Math.log(w1w2Count) - Math.log(w1Count);
+
+            // interpolate the result
+            double pInterpolated = (LAMBDA * unigramProbabilities.get(w2)) + ((1-LAMBDA) * p);
+
+            bigramProbabilities.put(w1w2, pInterpolated);
+        }
     }
 
     /**
