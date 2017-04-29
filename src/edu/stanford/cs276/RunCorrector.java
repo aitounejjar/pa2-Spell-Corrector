@@ -3,6 +3,7 @@ package edu.stanford.cs276;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.Set;
 
 
 public class RunCorrector {
@@ -62,46 +63,48 @@ public class RunCorrector {
 
         String query = null;
 
-    /*
+    /*quade
      * Each line in the file represents one query. We loop over each query and find
      * the most likely correction
      */
         while ((query = queriesFileReader.readLine()) != null) {
-
             String correctedQuery = query;
-      /*
-       * Your code here: currently the correctQuery and original query are the same
-       * Complete this implementation so that the spell corrector corrects the 
-       * (possibly) misspelled query
-       * 
-       */
+            /*
+               * Your code here: currently the correctQuery and original query are the same
+               * Complete this implementation so that the spell corrector corrects the
+               * (possibly) misspelled query
+               */
+
+            Set<String> candidates = CandidateGenerator.get().getCandidates(languageModel, query);
+
 
             if ("extra".equals(extra)) {
-        /*
-         * If you are going to implement something regarding to running the corrector,
-         * you can add code here. Feel free to move this code block to wherever
-         * you think is appropriate. But make sure if you add "extra" parameter,
-         * it will run code for your extra credit and it will run you basic
-         * implementations without the "extra" parameter.
-         */
+            /*
+             * If you are going to implement something regarding to running the corrector,
+             * you can add code here. Feel free to move this code block to wherever
+             * you think is appropriate. But make sure if you add "extra" parameter,
+             * it will run code for your extra credit and it will run you basic
+             * implementations without the "extra" parameter.
+             */
             }
 
             // If a gold file was provided, compare our correction to the gold correction
             // and output the running accuracy
             if (goldFileReader != null) {
                 String goldQuery = goldFileReader.readLine();
-        /*
-         * You can do any bookkeeping you wish here - track accuracy, track where your solution
-         * diverges from the gold file, what type of errors are more common etc. This might
-         * help you improve your candidate generation/scoring steps 
-         */
+
+            /*
+             * You can do any bookkeeping you wish here - track accuracy, track where your solution
+             * diverges from the gold file, what type of errors are more common etc. This might
+             * help you improve your candidate generation/scoring steps
+             */
             }
       
-      /*
-       * Output the corrected query.
-       * IMPORTANT: In your final submission DO NOT add any additional print statements as 
-       * this will interfere with the autograder
-       */
+          /*
+           * Output the corrected query.
+           * IMPORTANT: In your final submission DO NOT add any additional print statements as
+           * this will interfere with the autograder
+           */
             System.out.println(correctedQuery);
         }
         queriesFileReader.close();

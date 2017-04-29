@@ -11,7 +11,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * LanguageModel class constructs a language model from the training corpus.
@@ -27,6 +29,10 @@ public class LanguageModel implements Serializable {
 
     Dictionary unigrams = new Dictionary();
     Dictionary bigrams = new Dictionary();
+
+
+    Map<String, Set<String>> w1map = new HashMap<>();
+    Map<String, Set<String>> w2map = new HashMap<>();
 
     // counts the total number of terms in the corpus
     private int termCounter = 1;
@@ -86,7 +92,7 @@ public class LanguageModel implements Serializable {
                  * TODO: Your code here
                  */
 
-                String[] words = line.trim().split("\\s+");
+                String[] words = line.trim().toLowerCase().split("\\s+");
                 String previousWord = words[0];
                 unigrams.add(previousWord);
 
@@ -98,7 +104,10 @@ public class LanguageModel implements Serializable {
 
                     bigrams.add(bigram);
 
+                    updateBigramsMappings(previousWord, w);
+
                     previousWord = w;
+                    termCounter++;
                 }
 
             }
@@ -140,6 +149,22 @@ public class LanguageModel implements Serializable {
 
             bigramProbabilities.put(w1w2, pInterpolated);
         }
+    }
+
+    private void updateBigramsMappings(String w1, String w2) {
+
+        String bigram = w1+" "+w2;
+
+        if (!w1map.containsKey(w1)) {
+            w1map.put(w1, new HashSet<>());
+        }
+        w1map.get(w1).add(bigram);
+
+        if (!w2map.containsKey(w2)) {
+            w2map.put(w2, new HashSet<>());
+        }
+        w2map.get(w2).add(bigram);
+
     }
 
     /**
