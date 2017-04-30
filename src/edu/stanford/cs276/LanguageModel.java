@@ -11,7 +11,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,8 +37,8 @@ public class LanguageModel implements Serializable {
     private int termCounter = 1;
 
     // maps to store probabilities of unigrams and bigrams
-    private Map<String, Double> unigramProbabilities = new HashMap<>();
-    private Map<String, Double> bigramProbabilities  = new HashMap<>();
+    Map<String, Double> unigramProbabilities = new HashMap<>();
+    Map<String, Double> bigramProbabilities  = new HashMap<>();
 
     private static final double LAMBDA = 0.1;
 
@@ -153,7 +152,9 @@ public class LanguageModel implements Serializable {
 
     private void updateBigramsMappings(String w1, String w2) {
 
-        String bigram = w1+" "+w2;
+        // this causes an OutOfMemoryError ... this of a better way to store these
+
+        /*String bigram = w1+" "+w2;
 
         if (!w1map.containsKey(w1)) {
             w1map.put(w1, new HashSet<>());
@@ -163,7 +164,7 @@ public class LanguageModel implements Serializable {
         if (!w2map.containsKey(w2)) {
             w2map.put(w2, new HashSet<>());
         }
-        w2map.get(w2).add(bigram);
+        w2map.get(w2).add(bigram);*/
 
     }
 

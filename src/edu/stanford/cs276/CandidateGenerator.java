@@ -13,6 +13,8 @@ public class CandidateGenerator implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private static CandidateGenerator cg_;
+    public Map<String, Map<String, Integer>> editDistances = new HashMap<>();
+    private static String originalTerm = null;
 
     /**
      * Constructor
@@ -37,7 +39,7 @@ public class CandidateGenerator implements Serializable {
             'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
             '8', '9', ' ', ','};
 
-    public static final Character[] miniAlphabet = {'X','Y'};
+    public static final Character[] miniAlphabet = alphabet; //{'X','Y'};
 
     // Generate all candidates for the target query
     public Set<String> getCandidates(LanguageModel lm, String query) throws Exception {
@@ -47,29 +49,29 @@ public class CandidateGenerator implements Serializable {
          */
 
         Set<String> candidates = new HashSet<>();
-
-        LinkedList<List<String>> cartesianProductQueue = new LinkedList();
+        LinkedList cartesianProductQueue = new LinkedList();
         List<List<String>> lists = new ArrayList<>();
 
         // holds possible edits to individual terms
-        Map<String, Set<String>> edits = new HashMap<>();
+        //Map<String, Set<String>> edits = new HashMap<>();
 
         String[] words = query.trim().toLowerCase().split("\\s+");
 
         for (String w : words) {
 
-            Set<String> wAlternatives = getStringsWithinEditDistance1(lm, w);
-            List<String> l = new ArrayList<>();
+            Set<String> wAlternatives = getStringsWithinEditDistance1(lm, w, 0);
+            lists.add(new ArrayList<>(wAlternatives));
+            /*List<String> l = new ArrayList<>();
             l.addAll(wAlternatives); // sort by increasing unigram probabilities ?
-            /*for (String s : set) {
+            for (String s : set) {
                 candidates.addAll(getStringsWithinEditDistance1(s));
             }*/
-            edits.put(w, wAlternatives);
+            //edits.put(w, wAlternatives);
 
         }
 
         // sort list by increasing sizes, to increase the efficiency of the cartesian product
-        lists.sort((o1, o2) -> Integer.valueOf(o1.size()).compareTo(Integer.valueOf(o2.size())));
+        //lists.sort((o1, o2) -> Integer.valueOf(o1.size()).compareTo(Integer.valueOf(o2.size())));
 
         cartesianProductQueue.addAll(lists);
 
@@ -80,8 +82,8 @@ public class CandidateGenerator implements Serializable {
             }
 
             List<String> result = new ArrayList<>();
-            List<String> list1 = cartesianProductQueue.removeFirst();
-            List<String> list2 = cartesianProductQueue.removeFirst();
+            List<String> list1 = (List<String>) cartesianProductQueue.removeFirst();
+            List<String> list2 = (List<String>) cartesianProductQueue.removeFirst();
 
             for (String s1 : list1) {
                 for (String s2 : list2) {
@@ -92,19 +94,21 @@ public class CandidateGenerator implements Serializable {
             cartesianProductQueue.addFirst(result);
         }
 
-        List<String> cartesianStrings = cartesianProductQueue.get(0);
+        List<String> cartesianStrings = (List<String>) cartesianProductQueue.get(0);
 
         for (String possibleQuery : cartesianStrings) {
             String[] pq = possibleQuery.split("\\s+");
             for (int i=0; i<pq.length; ++i) {
-
+                // weed out some candidates ...
             }
         }
 
-        return candidates;
+        return new HashSet<>(cartesianStrings);
     }
 
-    private static Set<String> getStringsWithinEditDistance1(LanguageModel lm, String w) {
+    private Set<String> getStringsWithinEditDistance1(LanguageModel lm, String w, int passCounter) {
+
+        int dist = passCounter + 1;
 
         /*
           E.g.:  "stanford"
@@ -116,47 +120,54 @@ public class CandidateGenerator implements Serializable {
 
         Set<String> candidates = new HashSet<>();
 
-        // only useful for debugging - to remove before submit
-        Set<String> inserts = new HashSet<>();
+        // the original word itself is a candidate, so we add it to the set
+        candidates.add(w);
+
+        // only useful for debugging - do not commit uncommented - remove before submit
+        /*Set<String>  inserts = new HashSet<>();
         Set<String> deletes = new HashSet<>();
         Set<String>  substitutes = new HashSet<>();
-        Set<String> transpose = new HashSet<>();
+        Set<String> transpose = new HashSet<>();*/
 
+        updateEditDistances(w, w, dist);
 
-        char[] chars = w.toCharArray();
+        char[] wChars = w.toCharArray();
 
-        for (int i=0; i<chars.length; ++i) {
+        for (int m=0; m<wChars.length; ++m) {
 
-            String d = w.substring(0,i) + w.substring(i+1);
-            if (isDictionaryWord(lm, d)) {
+            String d = w.substring(0,m) + w.substring(m+1);
+            if ( !d.equals(w) && isDictionaryWord(lm, d)) {
                 candidates.add(d);
-                deletes.add(d);
+                //deletes.add(d);
+                updateEditDistances(w, d, dist);
             }
 
-
-            if (i!=0) {
+            if (m!=0) {
                 // switch places between the current char with the previous one
-                String t = "" + w.substring(0,i-1) + chars[i] + chars[i-1] + w.substring(i+1);
-                if (isDictionaryWord(lm, t)) {
+                String t = "" + w.substring(0,m-1) + wChars[m] + wChars[m-1] + w.substring(m+1);
+                if (!t.equals(w) && isDictionaryWord(lm, t)) {
                     candidates.add(t);
-                    transpose.add(t);
+                    //transpose.add(t);
+                    updateEditDistances(w, t, dist);
                 }
             }
 
             for (int j=0; j<miniAlphabet.length; ++j) {
                 // insert alphabet[j] at the index i, in the string
-                String insert = w.substring(0,i) + miniAlphabet[j] + w.substring(i+1);
-                if (isDictionaryWord(lm, insert)) {
-                    candidates.add(insert);
-                    inserts.add(insert);
+                String i = w.substring(0,m) + miniAlphabet[j] + w.substring(m+1);
+                if (!i.equals(w) && isDictionaryWord(lm, i)) {
+                    candidates.add(i);
+                    //inserts.add(i);
+                    updateEditDistances(w, i, dist);
                 }
 
                 // substitute char at index i with alphabet[j]
-                String sub = w.substring(0,i) + miniAlphabet[j] + w.substring(i+1);
-                System.out.println("::>" + sub);
-                if (isDictionaryWord(lm, sub)) {
-                    candidates.add(sub);
-                    substitutes.add(sub);
+                String s = w.substring(0,m) + miniAlphabet[j] + w.substring(m+1);
+                //System.out.println("::>" + s);
+                if (!s.equals(w) && isDictionaryWord(lm, s)) {
+                    candidates.add(s);
+                    //substitutes.add(s);
+                    updateEditDistances(w, s, dist);
                 }
             }
 
@@ -167,20 +178,22 @@ public class CandidateGenerator implements Serializable {
 
     /** returns true if w appears in the lexicon **/
     private static boolean isDictionaryWord(LanguageModel lm, String w) {
-        return lm.unigrams.map().containsKey(w);
+        return (lm==null) || lm.unigrams.map().containsKey(w); // remove lm==null check
+    }
+
+    private void updateEditDistances(String from, String to, int distance) {
+        //editDistances.putIfAbsent(from, new HashMap<>()).put(to, distance);
+
+        if (distance == 1) {
+            if (!editDistances.containsKey(from)) {
+                editDistances.put(from, new HashMap<>());
+            }
+            editDistances.get(from).put(to, distance);
+        } else {
+            editDistances.get(originalTerm).put(to, distance);
+        }
 
     }
 
-
-    /* public static void main (String[] args) {
-        // compute all words that are within an edit distance of 1
-        Set<String> all = new HashSet<>();
-        Set<String> set = getStringsWithinEditDistance1("stanford");
-        all.addAll(set);
-        for (String c : set) {
-            Set<String> s = getStringsWithinEditDistance1(c);
-            all.addAll(s);
-        }
-    }*/
 
 }
