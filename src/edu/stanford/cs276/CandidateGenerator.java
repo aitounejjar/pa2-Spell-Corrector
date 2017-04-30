@@ -60,13 +60,11 @@ public class CandidateGenerator implements Serializable {
         for (String w : words) {
 
             Set<String> wAlternatives = getStringsWithinEditDistance1(lm, w, 0);
-            lists.add(new ArrayList<>(wAlternatives));
-            /*List<String> l = new ArrayList<>();
-            l.addAll(wAlternatives); // sort by increasing unigram probabilities ?
-            for (String s : set) {
-                candidates.addAll(getStringsWithinEditDistance1(s));
-            }*/
-            //edits.put(w, wAlternatives);
+
+            for (String s : wAlternatives) {
+                wAlternatives = getStringsWithinEditDistance1(lm, w, 1);
+                lists.add(new ArrayList<>(wAlternatives)); // sort by increasing unigram probabilities ?
+            }
 
         }
 
@@ -182,7 +180,14 @@ public class CandidateGenerator implements Serializable {
     }
 
     private void updateEditDistances(String from, String to, int distance) {
-        //editDistances.putIfAbsent(from, new HashMap<>()).put(to, distance);
+
+        if (from.equals(to)) {
+            if (!editDistances.containsKey(from)) {
+                editDistances.put(from, new HashMap<>());
+            }
+            editDistances.get(from).put(to, 0);
+            return;
+        }
 
         if (distance == 1) {
             if (!editDistances.containsKey(from)) {
@@ -190,7 +195,7 @@ public class CandidateGenerator implements Serializable {
             }
             editDistances.get(from).put(to, distance);
         } else {
-            editDistances.get(originalTerm).put(to, distance);
+            editDistances.get(from).put(to, distance);
         }
 
     }
