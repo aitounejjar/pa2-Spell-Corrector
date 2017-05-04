@@ -1,13 +1,14 @@
 package edu.stanford.cs276;
 
 import edu.stanford.cs276.util.Assert;
+import edu.stanford.cs276.util.Comparators;
+import edu.stanford.cs276.util.DamerauLevenshtein;
 import edu.stanford.cs276.util.Logger;
 import edu.stanford.cs276.util.Pair;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -90,52 +91,19 @@ public class CandidateGenerator implements Serializable {
                     possibleNextWords = truncate(possibleNextWords);
 
                     // sort again based edit distance
-                    Collections.sort(possibleNextWords, new Comparator<String>() {
-                        @Override
-                        public int compare(String s1, String s2) {
-                            int d1 = computeEditDistance(w, s1);
-                            int d2 = computeEditDistance(w, s2);
-                            if (d1<d2) {
-                                return -1;
-                            } else if (d1>d2) {
-                                return 1;
-                            } else {
-                                return 0;
-                            }
-
-                        }
-                    });
+                    Collections.sort(possibleNextWords, Comparators.getEditDistanceComparator(w));
 
                     String wBestReplacement = possibleNextWords.get(0);
                     wAlternatives.add(wBestReplacement);
 
-                    updateEditDistances(w, wBestReplacement, computeEditDistance(w, wBestReplacement));
+                    updateEditDistances(w, wBestReplacement, DamerauLevenshtein.editDistance(w, wBestReplacement));
                 }
             }
 
             // sort the alternatives
 
             List<String> wAlternativesSorted = new ArrayList<>(wAlternatives);
-            Collections.sort(wAlternativesSorted, new Comparator<String>() {
-                @Override
-                public int compare(String s1, String s2) {
-                    double pUnigram1 = lm.getUnigramProbability(s1);
-                    double pUnigram2 = lm.getUnigramProbability(s2);
-                    double pNoisy1 = nsm.ecm_.editProbability(w, s1, computeEditDistance(w, s1));
-                    double pNoisy2 = nsm.ecm_.editProbability(w, s2, computeEditDistance(w, s2));
-
-                    double p1 = Math.log(pUnigram1) + Math.log(pNoisy1);
-                    double p2 = Math.log(pUnigram2) + Math.log(pNoisy2);
-
-                    if (p1 > p2) {
-                        return 1;
-                    } else if (p1 < p2) {
-                        return -1;
-                    } else {
-                        return 0;
-                    }
-                }
-            });
+            Collections.sort(wAlternativesSorted, Comparators.myComparator3(w, lm, nsm.ecm_));
 
             int max = Math.min(wAlternatives.size(), MAX_WORD_CANDIDATES);
 
@@ -310,56 +278,6 @@ public class CandidateGenerator implements Serializable {
             editDistances.get(from).put(to, distance);
         }
 
-    }
-
-
-
-    // source: stackoverflow
-    private int computeEditDistance(String s, String t) {
-        // degenerate cases
-        if (s == t) return 0;
-        if (s.length() == 0) return t.length();
-        if (t.length() == 0) return s.length();
-
-        // create two work vectors of integer distances
-        int[] v0 = new int[t.length() + 1];
-        int[] v1 = new int[t.length() + 1];
-
-        // initialize v0 (the previous row of distances)
-        // this row is A[0][i]: edit distance for an empty s
-        // the distance is just the number of characters to delete from t
-        for (int i = 0; i < v0.length; i++)
-            v0[i] = i;
-
-        for (int i = 0; i < s.length(); i++)
-        {
-            // calculate v1 (current row distances) from the previous row v0
-
-            // first element of v1 is A[i+1][0]
-            //   edit distance is delete (i+1) chars from s to match empty t
-            v1[0] = i + 1;
-
-            // use formula to fill in the rest of the row
-            for (int j = 0; j < t.length(); j++)
-            {
-                int cost = (s.charAt(i) == t.charAt(j)) ? 0 : 1;
-                v1[j + 1] = min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
-            }
-
-            // copy v1 (current row) to v0 (previous row) for next iteration
-            System.arraycopy(v1, 0, v0, 0, v0.length);
-        }
-
-        return v1[t.length()];
-    }
-
-    // source: stackoverflow
-    private static int min(int ... numbers) {
-        int min = Integer.MAX_VALUE;
-        for (int num : numbers) {
-            min = Math.min(min, num);
-        }
-        return min;
     }
 
     private List<String> truncate(List<String> list) {
