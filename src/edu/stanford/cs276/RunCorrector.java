@@ -1,5 +1,6 @@
 package edu.stanford.cs276;
 
+import edu.stanford.cs276.util.Assert;
 import edu.stanford.cs276.util.Pair;
 
 import java.io.BufferedReader;
@@ -17,6 +18,7 @@ public class RunCorrector {
     public static NoisyChannelModel nsm;
 
     private static final double LAMBDA = 0.95;
+    private static final String DIAMOND = "\u2662";
 
     public static void main(String[] args) throws Exception {
 
@@ -82,7 +84,9 @@ public class RunCorrector {
                * (possibly) misspelled query
                */
 
-            Set<String> candidates = CandidateGenerator.get().getCandidates(languageModel, query);
+            Set<String> candidates = CandidateGenerator.get().getCandidates(nsm, languageModel, query);
+
+            Assert.check(candidates.size()>0, "No candidates found for the query: " + query);
 
             // score candidates using the language model and the noisy channel model
             // score = P(Q|R) = P(R|Q) x P(Q) = (noisy channel probability) x (language model probability)
@@ -91,38 +95,13 @@ public class RunCorrector {
 
             for (String candidateQuery : candidates) {
 
+                double languageModelProbability = getLanguageModelProbability(candidateQuery.replace(DIAMOND, " "));
+
                 // compute the edit probability
-                double editProbability = nsm.ecm_.editProbability(query, candidateQuery, 0);
+                double editProbability = getNoisyChannelProbability(query, candidateQuery);
 
                 // compute the language model probability
-                String[] qArr = query.split("\\s+");
-                String[] cArr = candidateQuery.split("\\s+");
-                int cumulativeEditDistance = getEditDistance(qArr[0], cArr[0]);
-                double pW1 = languageModel.unigramProbabilities.get(cArr[0]);
-                double lmProbability = pW1;
-                for (int i=1; i<cArr.length; ++i) {
-
-                    String w1 = cArr[i-1];
-                    String w2 = cArr[i];
-                    String bigram = w1 + " " + w2;
-
-                    // we use linear interpolation to bypass the fact that a bigram might not have occurred in the
-                    // corpus, and thus its probability will be zero
-                    Double biProb = languageModel.bigramProbabilities.get(bigram);
-                    double pBigram = (
-                            (LAMBDA * ((biProb == null) ? 0 : biProb) )
-                            +
-                            (1-LAMBDA)*languageModel.unigramProbabilities.get(w1)
-                    );
-
-                    lmProbability += pBigram;
-
-                    // update the edit distance
-                    cumulativeEditDistance += getEditDistance(qArr[i], cArr[i]);
-                }
-
-                //double score = Math.log(editProbability) + Math.log(lmProbability);
-                double score = (editProbability) + (lmProbability);
+                double score = languageModelProbability + editProbability;
 
                 // update the scores
                 scores.add(new Pair(candidateQuery, score));
@@ -153,14 +132,15 @@ public class RunCorrector {
              * help you improve your candidate generation/scoring steps
              */
             }
-      
+
           /*
            * Output the corrected query.
            * IMPORTANT: In your final submission DO NOT add any additional print statements as
            * this will interfere with the autograder
            */
             //System.out.println(correctedQuery);
-            System.out.println("~ " + scores.get(0));
+            correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
+            System.out.println("~"+correctedQuery);
         }
         queriesFileReader.close();
     }
@@ -178,5 +158,49 @@ public class RunCorrector {
             ex.printStackTrace();
         }
         return d;
+    }
+
+
+    private static double getLanguageModelProbability(String candidate) {
+        String[] cArr = candidate.split("\\s+");
+        double p = Math.log(languageModel.getUnigramProbability(cArr[0]));
+
+        for (int i=1; i<cArr.length; ++i) {
+            String w1 = cArr[i-1];
+            String w2 = cArr[i];
+            String bigram = w1 + " " + w2;
+
+            // score = P(Q|R) = P(R|Q) x P(Q) = P(R|Q) x [P(uni) x P(w2|w1) x P(w3|w2) x .... P(biN)]
+
+            // we use linear interpolation to bypass the fact that a bigram might not have occurred in the
+            // corpus, and thus its probability will be zero
+            double biProb = (languageModel.getBigramProbability(bigram));
+            double uniProb = (languageModel.getUnigramProbability((w2)));
+
+            double pBigram = Math.log( (LAMBDA * uniProb) + ((1-LAMBDA)*biProb) );
+
+            p += pBigram;
+        }
+
+        return p;
+    }
+    private static double getNoisyChannelProbability(String query, String candidate) {
+        String[] guessedWords = candidate.split(DIAMOND);
+        String[] queryWords = query.split("\\s+");
+
+        Assert.check(guessedWords.length == queryWords.length, "Length mismatch::: query: "+queryWords.toString()+" -- candidate: "+guessedWords.toString());
+
+        double p = 0;
+        for (int i=0; i<guessedWords.length; ++i) {
+            String g = guessedWords[i];
+            String q = queryWords[i];
+            int dist = q.equals(g) ? 0 : 1;
+            p = nsm.ecm_.editProbability(q, g, dist);
+            p = p * languageModel.getUnigramProbability(g);
+        }
+
+        Assert.check( Math.abs(p) < 1 );
+
+        return p;
     }
 }

@@ -1,7 +1,13 @@
 package edu.stanford.cs276;
 
+import edu.stanford.cs276.util.Assert;
+import edu.stanford.cs276.util.Logger;
+import edu.stanford.cs276.util.Pair;
+
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -14,7 +20,10 @@ public class CandidateGenerator implements Serializable {
     private static final long serialVersionUID = 1L;
     private static CandidateGenerator cg_;
     public Map<String, Map<String, Integer>> editDistances = new HashMap<>();
-    private static String originalTerm = null;
+    private static final String DIAMOND = "\u2662";
+    private static final int MAX_WORD_CANDIDATES = 3;
+    private static final int MIN_WORD_CANDIDATES = 1;
+
 
     /**
      * Constructor
@@ -25,7 +34,8 @@ public class CandidateGenerator implements Serializable {
      * You can get a handle to a CandidateGenerator object using the static
      * 'get' method below.
      */
-    private CandidateGenerator() {}
+    private CandidateGenerator() {
+    }
 
     public static CandidateGenerator get() throws Exception {
         if (cg_ == null) {
@@ -39,37 +49,108 @@ public class CandidateGenerator implements Serializable {
             'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
             '8', '9', ' ', ','};
 
-    public static final Character[] miniAlphabet = alphabet; //{'X','Y'};
-
     // Generate all candidates for the target query
-    public Set<String> getCandidates(LanguageModel lm, String query) throws Exception {
+    public Set<String> getCandidates(NoisyChannelModel nsm, LanguageModel lm, String query) throws Exception {
 
         /*
          * Your code here
          */
 
-        Set<String> candidates = new HashSet<>();
         LinkedList cartesianProductQueue = new LinkedList();
         List<List<String>> lists = new ArrayList<>();
 
-        // holds possible edits to individual terms
-        //Map<String, Set<String>> edits = new HashMap<>();
-
         String[] words = query.trim().toLowerCase().split("\\s+");
 
-        for (String w : words) {
+        Logger.print(false, "---------------------------------");
+        for (int i=0; i<words.length; ++i) {
+            String w = words[i];
 
-            Set<String> wAlternatives = getStringsWithinEditDistance1(lm, w, 0);
+            Pair<Set<String>, Set<String>> sets = getStringsWithinEditDistance1(lm, w, w, 0);
 
-            for (String s : wAlternatives) {
-                wAlternatives = getStringsWithinEditDistance1(lm, w, 1);
-                lists.add(new ArrayList<>(wAlternatives)); // sort by increasing unigram probabilities ?
+            // w alternatives that are valid dictionary terms
+            Set<String> wAlternatives = sets.getFirst();
+
+            if (wAlternatives.isEmpty()) {
+                // come up with strings at edit distance of 2
+                Set<String> nonDictAlternatives = sets.getSecond();
+                for (String s : nonDictAlternatives) {
+                    Set<String> wAlternativesAtDistance2 = getStringsWithinEditDistance1(lm, s, w, 1).getFirst();
+                    wAlternatives.addAll(wAlternativesAtDistance2);
+                }
+                Logger.print(false, "dist2 alternatives of '" + w + "': " + wAlternatives.toString());
             }
 
-        }
+            // if we still didn't get enough candidates
+            if (wAlternatives.size() < MIN_WORD_CANDIDATES) {
+                if (i==0 && words.length==1) {
 
+                }
+                if (i == 0) {
+                    List<String> possibleNextWords = lm.getWordsThatComeBefore(words[i+1]);
+                    possibleNextWords = truncate(possibleNextWords);
+
+                    // sort again based edit distance
+                    Collections.sort(possibleNextWords, new Comparator<String>() {
+                        @Override
+                        public int compare(String s1, String s2) {
+                            int d1 = computeEditDistance(w, s1);
+                            int d2 = computeEditDistance(w, s2);
+                            if (d1<d2) {
+                                return -1;
+                            } else if (d1>d2) {
+                                return 1;
+                            } else {
+                                return 0;
+                            }
+
+                        }
+                    });
+
+                    String wBestReplacement = possibleNextWords.get(0);
+                    wAlternatives.add(wBestReplacement);
+
+                    updateEditDistances(w, wBestReplacement, computeEditDistance(w, wBestReplacement));
+                }
+            }
+
+            // sort the alternatives
+
+            List<String> wAlternativesSorted = new ArrayList<>(wAlternatives);
+            Collections.sort(wAlternativesSorted, new Comparator<String>() {
+                @Override
+                public int compare(String s1, String s2) {
+                    double pUnigram1 = lm.getUnigramProbability(s1);
+                    double pUnigram2 = lm.getUnigramProbability(s2);
+                    double pNoisy1 = nsm.ecm_.editProbability(w, s1, computeEditDistance(w, s1));
+                    double pNoisy2 = nsm.ecm_.editProbability(w, s2, computeEditDistance(w, s2));
+
+                    double p1 = Math.log(pUnigram1) + Math.log(pNoisy1);
+                    double p2 = Math.log(pUnigram2) + Math.log(pNoisy2);
+
+                    if (p1 > p2) {
+                        return 1;
+                    } else if (p1 < p2) {
+                        return -1;
+                    } else {
+                        return 0;
+                    }
+                }
+            });
+
+            int max = Math.min(wAlternatives.size(), MAX_WORD_CANDIDATES);
+
+            wAlternativesSorted = wAlternativesSorted.subList(0, max);
+
+            lists.add(wAlternativesSorted);
+
+            Logger.print(false, "w: " + w + " --> " + wAlternatives.toString());
+
+        }
         // sort list by increasing sizes, to increase the efficiency of the cartesian product
         //lists.sort((o1, o2) -> Integer.valueOf(o1.size()).compareTo(Integer.valueOf(o2.size())));
+
+
+        Logger.print(false, "cartesian product of " + lists.size() + " lists ... query = \"" + query + "\"");
 
         cartesianProductQueue.addAll(lists);
 
@@ -85,7 +166,7 @@ public class CandidateGenerator implements Serializable {
 
             for (String s1 : list1) {
                 for (String s2 : list2) {
-                    result.add(s1+" "+s2);
+                    result.add(s1 + DIAMOND + s2);
                 }
             }
 
@@ -94,111 +175,196 @@ public class CandidateGenerator implements Serializable {
 
         List<String> cartesianStrings = (List<String>) cartesianProductQueue.get(0);
 
+        Set<String> filteredOut = new HashSet<>();
+
         for (String possibleQuery : cartesianStrings) {
-            String[] pq = possibleQuery.split("\\s+");
-            for (int i=0; i<pq.length; ++i) {
-                // weed out some candidates ...
+            int distance = 0;
+            String[] pq = possibleQuery.split(DIAMOND);
+
+            Logger.print(false, "-------");
+            Logger.print(false, "q: " + query);
+            Logger.print(false, "c: " + possibleQuery);
+
+            for (int i = 0; i < pq.length; ++i) {
+                String from = words[i];
+                String to = pq[i];
+
+                Assert.check(editDistances.containsKey(from), "Map of edit distances didn't contain the key '" + from + "'");
+                Assert.check(editDistances.get(from).get(to) != null, "Null edit distance found from '" + from + "' to '" + to + "'");
+                int d = editDistances.get(from).get(to);
+
+                distance += d;
             }
+
+            //if (distance > 4) {
+            //    filteredOut.add(possibleQuery);
+            //}
+
         }
 
+        cartesianStrings.removeAll(filteredOut);
+
+        Logger.print(false, "total number of possible queries: " + cartesianStrings.size());
+
+        Assert.check(cartesianStrings.size() > 0, "No candidates found for the query: " + query);
         return new HashSet<>(cartesianStrings);
     }
 
-    private Set<String> getStringsWithinEditDistance1(LanguageModel lm, String w, int passCounter) {
+    private Pair<Set<String>, Set<String>> getStringsWithinEditDistance1(LanguageModel lm, String w, String originalW, int passCount) {
 
-        int dist = passCounter + 1;
+        Set<String> dictAlternatives = new HashSet<>();
+        Set<String> nonDictAlternatives = new HashSet<>();
 
-        /*
-          E.g.:  "stanford"
-         insert -> stanfordX, Xstanford, staXnford
-         delete -> tanford, stanford, stnford
-         subst  -> Xtanford, stanfXrd
-         transp -> stanfodr, stanofrd
-         */
+        int dist = 1 + passCount;
 
-        Set<String> candidates = new HashSet<>();
-
-        // the original word itself is a candidate, so we add it to the set
-        candidates.add(w);
-
-        // only useful for debugging - do not commit uncommented - remove before submit
-        /*Set<String>  inserts = new HashSet<>();
-        Set<String> deletes = new HashSet<>();
-        Set<String>  substitutes = new HashSet<>();
-        Set<String> transpose = new HashSet<>();*/
-
-        updateEditDistances(w, w, dist);
+        if (isDictionaryWord(lm, w)) {
+            // the original word itself is a candidate, so we add it to the set
+            dictAlternatives.add(w);
+            updateEditDistances(originalW, originalW, 0);
+            return new Pair<>(dictAlternatives, nonDictAlternatives);
+        }
 
         char[] wChars = w.toCharArray();
 
-        for (int m=0; m<wChars.length; ++m) {
+        for (int m = 0; m < wChars.length; ++m) {
 
-            String d = w.substring(0,m) + w.substring(m+1);
-            if ( !d.equals(w) && isDictionaryWord(lm, d)) {
-                candidates.add(d);
+            String d = w.substring(0, m) + w.substring(m + 1);
+
+            if (!d.equals(originalW) && isDictionaryWord(lm, d)) {
+                dictAlternatives.add(d);
                 //deletes.add(d);
-                updateEditDistances(w, d, dist);
+                updateEditDistances(originalW, d, dist);
+            } else if (!d.equals(originalW) && !isDictionaryWord(lm, d)) {
+                nonDictAlternatives.add(d);
+                updateEditDistances(originalW, d, dist);
             }
 
-            if (m!=0) {
+            if (m != 0) {
                 // switch places between the current char with the previous one
-                String t = "" + w.substring(0,m-1) + wChars[m] + wChars[m-1] + w.substring(m+1);
-                if (!t.equals(w) && isDictionaryWord(lm, t)) {
-                    candidates.add(t);
+                String t = "" + w.substring(0, m - 1) + wChars[m] + wChars[m - 1] + w.substring(m + 1);
+                if (!t.equals(originalW) && isDictionaryWord(lm, t)) {
+                    dictAlternatives.add(t);
                     //transpose.add(t);
+                    updateEditDistances(w, t, dist);
+                } else if (!t.equals(originalW) && !isDictionaryWord(lm, t)) {
+                    nonDictAlternatives.add(t);
                     updateEditDistances(w, t, dist);
                 }
             }
 
-            for (int j=0; j<miniAlphabet.length; ++j) {
+            for (int j = 0; j < alphabet.length; ++j) {
                 // insert alphabet[j] at the index i, in the string
-                String i = w.substring(0,m) + miniAlphabet[j] + w.substring(m+1);
-                if (!i.equals(w) && isDictionaryWord(lm, i)) {
-                    candidates.add(i);
+                String i = null;
+                if (m == 0) {
+                    i = alphabet[j] + w;
+                } else {
+                    i = w.substring(0, m) + alphabet[j] + w.substring(m);
+                }
+
+                if (!i.equals(originalW) && isDictionaryWord(lm, i)) {
+                    dictAlternatives.add(i);
                     //inserts.add(i);
-                    updateEditDistances(w, i, dist);
+                    updateEditDistances(originalW, i, dist);
+                } else if (!i.equals(originalW) && !isDictionaryWord(lm, i)) {
+                    nonDictAlternatives.add(i);
+                    updateEditDistances(originalW, i, dist);
                 }
 
                 // substitute char at index i with alphabet[j]
-                String s = w.substring(0,m) + miniAlphabet[j] + w.substring(m+1);
-                //System.out.println("::>" + s);
-                if (!s.equals(w) && isDictionaryWord(lm, s)) {
-                    candidates.add(s);
+                String s = w.substring(0, m) + alphabet[j] + w.substring(m + 1);
+
+                if (!s.equals(originalW) && isDictionaryWord(lm, s)) {
+                    dictAlternatives.add(s);
                     //substitutes.add(s);
-                    updateEditDistances(w, s, dist);
+                    updateEditDistances(originalW, s, dist);
+                } else if (!s.equals(originalW) && !isDictionaryWord(lm, s)) {
+                    nonDictAlternatives.add(s);
+                    updateEditDistances(originalW, s, dist);
                 }
             }
 
         }
 
-        return candidates;
+        return new Pair<>(dictAlternatives, nonDictAlternatives);
     }
 
-    /** returns true if w appears in the lexicon **/
+    /**
+     * returns true if w appears in the lexicon
+     **/
     private static boolean isDictionaryWord(LanguageModel lm, String w) {
-        return (lm==null) || lm.unigrams.map().containsKey(w); // remove lm==null check
+        return lm.unigrams.map().containsKey(w) || lm.bigrams.map().containsKey(w);
     }
 
     private void updateEditDistances(String from, String to, int distance) {
 
-        if (from.equals(to)) {
-            if (!editDistances.containsKey(from)) {
-                editDistances.put(from, new HashMap<>());
-            }
-            editDistances.get(from).put(to, 0);
-            return;
+        if (!editDistances.containsKey(from)) {
+            editDistances.put(from, new HashMap<>());
         }
 
-        if (distance == 1) {
-            if (!editDistances.containsKey(from)) {
-                editDistances.put(from, new HashMap<>());
-            }
-            editDistances.get(from).put(to, distance);
+        if (from.equals(to)) {
+            //Assert.check(distance == 0, "Edit distance must be 0 for similar strings.");
+            editDistances.get(from).put(to, 0);
+            return;
         } else {
+            //Assert.check(distance == 1 || distance == 2, "Edit distances other than 1 or 2 are not supported.");
             editDistances.get(from).put(to, distance);
         }
 
     }
 
+
+
+    // source: stackoverflow
+    private int computeEditDistance(String s, String t) {
+        // degenerate cases
+        if (s == t) return 0;
+        if (s.length() == 0) return t.length();
+        if (t.length() == 0) return s.length();
+
+        // create two work vectors of integer distances
+        int[] v0 = new int[t.length() + 1];
+        int[] v1 = new int[t.length() + 1];
+
+        // initialize v0 (the previous row of distances)
+        // this row is A[0][i]: edit distance for an empty s
+        // the distance is just the number of characters to delete from t
+        for (int i = 0; i < v0.length; i++)
+            v0[i] = i;
+
+        for (int i = 0; i < s.length(); i++)
+        {
+            // calculate v1 (current row distances) from the previous row v0
+
+            // first element of v1 is A[i+1][0]
+            //   edit distance is delete (i+1) chars from s to match empty t
+            v1[0] = i + 1;
+
+            // use formula to fill in the rest of the row
+            for (int j = 0; j < t.length(); j++)
+            {
+                int cost = (s.charAt(i) == t.charAt(j)) ? 0 : 1;
+                v1[j + 1] = min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+            }
+
+            // copy v1 (current row) to v0 (previous row) for next iteration
+            System.arraycopy(v1, 0, v0, 0, v0.length);
+        }
+
+        return v1[t.length()];
+    }
+
+    // source: stackoverflow
+    private static int min(int ... numbers) {
+        int min = Integer.MAX_VALUE;
+        for (int num : numbers) {
+            min = Math.min(min, num);
+        }
+        return min;
+    }
+
+    private List<String> truncate(List<String> list) {
+        int max = Math.min(MAX_WORD_CANDIDATES, list.size());
+        return list.subList(0, max);
+    }
 
 }

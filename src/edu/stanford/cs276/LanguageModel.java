@@ -1,5 +1,6 @@
 package edu.stanford.cs276;
 
+import edu.stanford.cs276.util.Comparators;
 import edu.stanford.cs276.util.Dictionary;
 
 import java.io.BufferedReader;
@@ -10,7 +11,11 @@ import java.io.FileReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -29,16 +34,15 @@ public class LanguageModel implements Serializable {
     Dictionary unigrams = new Dictionary();
     Dictionary bigrams = new Dictionary();
 
-
-    Map<String, Set<String>> w1map = new HashMap<>();
-    Map<String, Set<String>> w2map = new HashMap<>();
+    Map<String, Set<String>> w1w2_map = new HashMap<>();
+    Map<String, Set<String>> w2w1_map = new HashMap<>();
 
     // counts the total number of terms in the corpus
     private int termCounter = 1;
 
     // maps to store probabilities of unigrams and bigrams
-    Map<String, Double> unigramProbabilities = new HashMap<>();
-    Map<String, Double> bigramProbabilities  = new HashMap<>();
+    private static Map<String, Double> unigramProbabilities = new HashMap<>();
+    private static Map<String, Double> bigramProbabilities  = new HashMap<>();
 
     private static final double LAMBDA = 0.1;
 
@@ -103,10 +107,18 @@ public class LanguageModel implements Serializable {
 
                     bigrams.add(bigram);
 
-                    updateBigramsMappings(previousWord, w);
+                    if (!w1w2_map.containsKey(previousWord)) {
+                        w1w2_map.put(previousWord, new HashSet<>());
+                    }
+                    w1w2_map.get(previousWord).add(w);
+
+
+                    if (!w2w1_map.containsKey(w)) {
+                        w2w1_map.put(w, new HashSet<>());
+                    }
+                    w2w1_map.get(w).add(previousWord);
 
                     previousWord = w;
-                    termCounter++;
                 }
 
             }
@@ -124,7 +136,7 @@ public class LanguageModel implements Serializable {
         int t = unigrams.termCount();
         for (String w : map.keySet()) {
             int wCount = map.get(w);
-            double p = Math.log(wCount) - Math.log(t);
+            double p =  wCount/(double)t;
             unigramProbabilities.put(w, p);
         }
     }
@@ -141,31 +153,14 @@ public class LanguageModel implements Serializable {
             // compute the bigram's probability
             int w1w2Count = map.get(w1w2);
             int w1Count = unigrams.map().get(w1);
-            double p = Math.log(w1w2Count) - Math.log(w1Count);
+            double p = w1w2Count/(double)w1Count;
+
 
             // interpolate the result
             double pInterpolated = (LAMBDA * unigramProbabilities.get(w2)) + ((1-LAMBDA) * p);
 
             bigramProbabilities.put(w1w2, pInterpolated);
         }
-    }
-
-    private void updateBigramsMappings(String w1, String w2) {
-
-        // this causes an OutOfMemoryError ... this of a better way to store these
-
-        /*String bigram = w1+" "+w2;
-
-        if (!w1map.containsKey(w1)) {
-            w1map.put(w1, new HashSet<>());
-        }
-        w1map.get(w1).add(bigram);
-
-        if (!w2map.containsKey(w2)) {
-            w2map.put(w2, new HashSet<>());
-        }
-        w2map.get(w2).add(bigram);*/
-
     }
 
     /**
@@ -204,4 +199,43 @@ public class LanguageModel implements Serializable {
         save.writeObject(this);
         save.close();
     }
+
+    public static double getBigramProbability(String bigram) {
+        double d = 0.0;
+        if (bigramProbabilities.containsKey(bigram)) {
+            d = bigramProbabilities.get(bigram);
+        }
+        return d;
+    }
+
+    public static double getUnigramProbability(String unigram) {
+        double d = 0.0;
+        if (unigramProbabilities.containsKey(unigram)) {
+            d = unigramProbabilities.get(unigram);
+        }
+        return d;
+    }
+
+    public List<String> getWordsThatComeBefore(String w) {
+        return helper(w, w2w1_map);
+    }
+
+    public List<String> getWordsThatComeAfter(String w) {
+        return helper(w, w1w2_map);
+    }
+
+    private List<String> helper(String w, Map<String, Set<String>> map) {
+        List<String> list = new ArrayList<>();
+
+        if (!map.containsKey(w)) {
+            return list;
+        }
+
+        List<String> words = new ArrayList<>(map.get(w));
+
+        Collections.sort(words, Comparators.myComparator(w));
+
+        return new ArrayList<>(words);
+    }
+
 }
