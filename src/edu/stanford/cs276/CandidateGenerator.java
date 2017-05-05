@@ -7,14 +7,7 @@ import edu.stanford.cs276.util.Logger;
 import edu.stanford.cs276.util.Pair;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static edu.stanford.cs276.RunCorrector.DIAMOND;
 
@@ -23,8 +16,7 @@ public class CandidateGenerator implements Serializable {
     private static final long serialVersionUID = 1L;
     private static CandidateGenerator cg_;
     public Map<String, Map<String, Integer>> editDistances = new HashMap<>();
-    private static final int MAX_WORD_CANDIDATES = 3;
-    private static final int MIN_WORD_CANDIDATES = 1;
+    private static final int MAX_WORD_CANDIDATES = 4;
 
 
     /**
@@ -49,7 +41,7 @@ public class CandidateGenerator implements Serializable {
     public static final Character[] alphabet = {'a', 'b', 'c', 'd', 'e', 'f',
             'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
             'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', ' ', ','};
+            '8', '9', ' ', ',', '\''};
 
     // Generate all candidates for the target query
     public Set<String> getCandidates(NoisyChannelModel nsm, LanguageModel lm, String query) throws Exception {
@@ -61,9 +53,8 @@ public class CandidateGenerator implements Serializable {
         LinkedList cartesianProductQueue = new LinkedList();
         List<List<String>> lists = new ArrayList<>();
 
-        String[] words = query.trim().toLowerCase().split("\\s+");
+        String[] words = query.trim().split("\\s+");
 
-        Logger.print(false, "---------------------------------");
         for (int i=0; i<words.length; ++i) {
             String w = words[i];
 
@@ -82,31 +73,37 @@ public class CandidateGenerator implements Serializable {
                 Logger.print(false, "dist2 alternatives of '" + w + "': " + wAlternatives.toString());
             }
 
-            // if we still didn't get enough candidates
-            if (wAlternatives.size() < MIN_WORD_CANDIDATES) {
-                if (i==0 && words.length==1) {
 
+            List<String> languageModelMostLikely = new ArrayList<>();
+            if (wAlternatives.isEmpty()) {
+                if (i + 1 < words.length) {
+                    List<String> temp = lm.getWordsThatComeBefore(words[i+1]);
+                    languageModelMostLikely.addAll(temp);
                 }
-                if (i == 0) {
-                    List<String> possibleNextWords = lm.getWordsThatComeBefore(words[i+1]);
-                    possibleNextWords = truncate(possibleNextWords);
 
-                    // sort again based edit distance
-                    Collections.sort(possibleNextWords, Comparators.getEditDistanceComparator(w));
-
-                    String wBestReplacement = possibleNextWords.get(0);
-                    wAlternatives.add(wBestReplacement);
-
-                    updateEditDistances(w, wBestReplacement, DamerauLevenshtein.editDistance(w, wBestReplacement));
+                if (i > 0) {
+                    List<String> temp = lm.getWordsThatComeAfter(words[i-1]);
+                    languageModelMostLikely.addAll(temp);
                 }
             }
 
+            // sort based edit distance
+            Collections.sort(languageModelMostLikely, Comparators.EDIT_DISTANCE_COMPARATOR(w));
+            languageModelMostLikely = truncate(languageModelMostLikely);
+            wAlternatives.addAll(languageModelMostLikely);
+
+
+            // explicitly update edit distances
+            for (String lmStrings : languageModelMostLikely) {
+                updateEditDistances(w, lmStrings, DamerauLevenshtein.editDistance(w, lmStrings));
+            }
+
             // sort the alternatives
-
             List<String> wAlternativesSorted = new ArrayList<>(wAlternatives);
-            Collections.sort(wAlternativesSorted, Comparators.myComparator3(w, lm, nsm.ecm_));
+            Collections.sort(wAlternativesSorted, Comparators.LANGUAGE_AND_NOISY_MODELS_COMPARATOR(w, lm, nsm.ecm_));
+            Collections.reverse(wAlternativesSorted);
 
-            int max = Math.min(wAlternatives.size(), MAX_WORD_CANDIDATES);
+            int max = Math.min(wAlternatives.size(), (words.length >= 4) ? 3 : MAX_WORD_CANDIDATES);
 
             wAlternativesSorted = wAlternativesSorted.subList(0, max);
 
@@ -115,9 +112,6 @@ public class CandidateGenerator implements Serializable {
             Logger.print(false, "w: " + w + " --> " + wAlternatives.toString());
 
         }
-        // sort list by increasing sizes, to increase the efficiency of the cartesian product
-        //lists.sort((o1, o2) -> Integer.valueOf(o1.size()).compareTo(Integer.valueOf(o2.size())));
-
 
         Logger.print(false, "cartesian product of " + lists.size() + " lists ... query = \"" + query + "\"");
 
@@ -165,9 +159,9 @@ public class CandidateGenerator implements Serializable {
                 distance += d;
             }
 
-            //if (distance > 4) {
-            //    filteredOut.add(possibleQuery);
-            //}
+            if (distance > 3) {
+                filteredOut.add(possibleQuery);
+            }
 
         }
 
@@ -190,7 +184,7 @@ public class CandidateGenerator implements Serializable {
             // the original word itself is a candidate, so we add it to the set
             dictAlternatives.add(w);
             updateEditDistances(originalW, originalW, 0);
-            return new Pair<>(dictAlternatives, nonDictAlternatives);
+            //return new Pair<>(dictAlternatives, nonDictAlternatives);
         }
 
         char[] wChars = w.toCharArray();

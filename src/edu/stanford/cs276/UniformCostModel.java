@@ -20,9 +20,9 @@ public class UniformCostModel implements EditCostModel {
         // TODO: Your code here
         // calculate the probability of seeing some R given its edit distance from Q
 
-        double p = distance * Math.log(UNIFORM_EDIT_PROBABILITY);
+        double p = Math.pow(UNIFORM_EDIT_PROBABILITY, distance);
         if (original.equals(R)) {
-            return Math.log(ZERO_EDIT_PROBABILITY);
+            return (ZERO_EDIT_PROBABILITY);
         }
         return p;
     }

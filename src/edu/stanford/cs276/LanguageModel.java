@@ -1,6 +1,5 @@
 package edu.stanford.cs276;
 
-import edu.stanford.cs276.util.Comparators;
 import edu.stanford.cs276.util.Dictionary;
 
 import java.io.BufferedReader;
@@ -12,7 +11,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -95,7 +93,7 @@ public class LanguageModel implements Serializable {
                  * TODO: Your code here
                  */
 
-                String[] words = line.trim().toLowerCase().split("\\s+");
+                String[] words = line.trim().split("\\s+");
                 String previousWord = words[0];
                 unigrams.add(previousWord);
 
@@ -233,7 +231,7 @@ public class LanguageModel implements Serializable {
 
         List<String> words = new ArrayList<>(map.get(w));
 
-        Collections.sort(words, Comparators.myComparator(w, lm_));
+        //Collections.sort(words, Comparators.myComparator(w, lm_));
 
         return new ArrayList<>(words);
     }

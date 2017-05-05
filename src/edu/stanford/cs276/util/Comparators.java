@@ -4,67 +4,50 @@ import edu.stanford.cs276.EditCostModel;
 import edu.stanford.cs276.LanguageModel;
 
 import java.util.Comparator;
+import java.util.List;
 
 public class Comparators {
 
-    public static Comparator<String> myComparator(String w, LanguageModel lm_) {
-        return new Comparator<String>() {
-            @Override
-            public int compare(String s1, String s2) {
-                String bigram1 = w + " " + s1;
-                String bigram2 = w + " " + s2;
-
-                double pBigram1 = lm_.getBigramProbability(bigram1);
-                double pBigram2 = lm_.getBigramProbability(bigram2);
-                double pUnigram1 = lm_.getUnigramProbability(s1);
-                double pUnigram2 = lm_.getUnigramProbability(s2);
-
-                double p1 = Math.log(pBigram1) + Math.log(pUnigram1);
-                double p2 = Math.log(pBigram2) + Math.log(pUnigram2);
-
-                return (p1 > p2) ? 1 : -1;
+    // compares strings based on how far they are, in terms of edit distance, from the passed string
+    public static Comparator<String> EDIT_DISTANCE_COMPARATOR(String w) {
+        return (s1, s2) -> {
+            int d1 = DamerauLevenshtein.editDistance(w, s1);
+            int d2 = DamerauLevenshtein.editDistance(w, s2);
+            if (d1<d2) {
+                return -1;
+            } else if (d1>d2) {
+                return 1;
+            } else {
+                return 0;
             }
         };
     }
 
-    public static Comparator<String> getEditDistanceComparator(String w) {
-        return new Comparator<String>() {
-            @Override
-            public int compare(String s1, String s2) {
-                int d1 = DamerauLevenshtein.editDistance(w, s1);
-                int d2 = DamerauLevenshtein.editDistance(w, s2);
-                if (d1<d2) {
-                    return -1;
-                } else if (d1>d2) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-            }
+    // compares strings based on their language model / noisy channel model probabilities
+    public static Comparator<String> LANGUAGE_AND_NOISY_MODELS_COMPARATOR(String w, LanguageModel lm_, EditCostModel ecm_) {
+        return (s1, s2) -> {
+            double pUnigram1 = lm_.getUnigramProbability(s1);
+            double pUnigram2 = lm_.getUnigramProbability(s2);
+
+            double pNoisy1 = ecm_.editProbability(w, s1, DamerauLevenshtein.editDistance(w, s1));
+            double pNoisy2 = ecm_.editProbability(w, s2, DamerauLevenshtein.editDistance(w, s2));
+
+            double p1 = (Math.log(pUnigram1)) + Math.log(pNoisy1);
+            double p2 = (Math.log(pUnigram2)) + Math.log(pNoisy2);
+
+            return Double.valueOf(p1).compareTo(Double.valueOf(p2));
         };
     }
 
-    private static final double LAMBDA = 0.1;
-    public static Comparator<String> myComparator3(String w, LanguageModel lm_, EditCostModel ecm_) {
-        return new Comparator<String>() {
-            @Override
-            public int compare(String s1, String s2) {
-                double pUnigram1 = lm_.getUnigramProbability(s1);
-                double pUnigram2 = lm_.getUnigramProbability(s2);
-                double pNoisy1 = ecm_.editProbability(w, s1, DamerauLevenshtein.editDistance(w, s1));
-                double pNoisy2 = ecm_.editProbability(w, s2, DamerauLevenshtein.editDistance(w, s2));
+    // compares two lists of strings based on their sizes
+    public static Comparator<List<String>> SIZE_COMPARATOR() {
+        return (list, otherList) -> {
+            int sizeDiff = list.size() - otherList.size();
 
-                double p1 = Math.log(pUnigram1) + Math.log(pNoisy1);
-                double p2 = Math.log(pUnigram2) + Math.log(pNoisy2);
+            if      (sizeDiff == 0)   return 0;
+            else if (sizeDiff >  0)   return +1;
+            else                      return -1;
 
-                if (p1 > p2) {
-                    return -1;
-                } else if (p1 < p2) {
-                    return +1;
-                } else {
-                    return 0;
-                }
-            }
         };
     }
 

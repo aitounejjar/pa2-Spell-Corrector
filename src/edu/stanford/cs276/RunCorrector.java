@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -18,6 +19,7 @@ public class RunCorrector {
     public static LanguageModel languageModel;
     public static NoisyChannelModel nsm;
 
+    private static final double MU = 1.3;
     private static final double LAMBDA = 0.95;
     public static final String DIAMOND = "\u2662";
 
@@ -77,13 +79,14 @@ public class RunCorrector {
 
         String query = null;
 
-    /*quade
+    /*
      * Each line in the file represents one query. We loop over each query and find
      * the most likely correction
      */
         while ((query = queriesFileReader.readLine()) != null) {
             queryCounter++;
-            String correctedQuery = query;
+            query = query.trim();
+            String correctedQuery = null;
             /*
                * Your code here: currently the correctQuery and original query are the same
                * Complete this implementation so that the spell corrector corrects the
@@ -114,12 +117,11 @@ public class RunCorrector {
 
             }
 
-            Collections.sort(scores, (p1, p2) -> p1.getSecond().compareTo(p2.getSecond()));
-            Collections.reverse(scores);
+            Collections.sort(scores, (p1, p2) -> p2.getSecond().compareTo(p1.getSecond()));
 
             correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
-            System.out.println("o: " + query);
-            System.out.println("c: " + correctedQuery);
+            Logger.print(true, "o: " + query);
+            Logger.print(true, "c: " + correctedQuery);
 
             if ("extra".equals(extra)) {
             /*
@@ -135,12 +137,17 @@ public class RunCorrector {
             // and output the running accuracy
             if (goldFileReader != null) {
                 String goldQuery = goldFileReader.readLine();
+                Logger.print(true, "g: " + goldQuery );
                 if (goldQuery.equals(correctedQuery)) {
                     successCounter++;
+                } else {
+                    if (wasCandidateGenerated(candidates, goldQuery)) {
+                        Logger.print(true, "::: rank problem");
+                    } else {
+                        Logger.print(true, "=== candidate generation problem");
+                    }
                 }
 
-                Logger.print(true, "g: " + goldQuery );
-                Logger.print(!goldQuery.equals(correctedQuery), "-----> missmatch!");
             /*
              * You can do any bookkeeping you wish here - track accuracy, track where your solution
              * diverges from the gold file, what type of errors are more common etc. This might
@@ -179,6 +186,7 @@ public class RunCorrector {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+        Assert.check(d!=-1, "Edit distance cannot be -1");
         return d;
     }
 
@@ -204,8 +212,9 @@ public class RunCorrector {
             p += pBigram;
         }
 
-        return p;
+        return p;//MU*p;
     }
+
     private static double getNoisyChannelProbability(String query, String candidate) {
         String[] guessedWords = candidate.split(DIAMOND);
         String[] queryWords = query.split("\\s+");
@@ -217,12 +226,20 @@ public class RunCorrector {
             String g = guessedWords[i];
             String q = queryWords[i];
             int dist = q.equals(g) ? 0 : 1;
-            p = nsm.ecm_.editProbability(q, g, dist);
-            p = p * languageModel.getUnigramProbability(g);
+            p += Math.log(nsm.ecm_.editProbability(q, g, dist));
         }
-
-        Assert.check( Math.abs(p) < 1 );
 
         return p;
     }
+
+    private static boolean wasCandidateGenerated(Set<String> candidates, String c) {
+
+        Set<String> candidatesWithoutDiamonds = new HashSet<>();
+        for (String s : candidates) {
+            candidatesWithoutDiamonds.add(s.replace(DIAMOND, " "));
+        }
+
+        return candidatesWithoutDiamonds.contains(c);
+    }
+
 }
