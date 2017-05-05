@@ -41,8 +41,8 @@ public class LanguageModel implements Serializable {
     private int termCounter = 1;
 
     // maps to store probabilities of unigrams and bigrams
-    private static Map<String, Double> unigramProbabilities = new HashMap<>();
-    private static Map<String, Double> bigramProbabilities  = new HashMap<>();
+    private Map<String, Double> unigramProbabilities = new HashMap<>();
+    private Map<String, Double> bigramProbabilities  = new HashMap<>();
 
     private static final double LAMBDA = 0.1;
 
@@ -200,7 +200,7 @@ public class LanguageModel implements Serializable {
         save.close();
     }
 
-    public static double getBigramProbability(String bigram) {
+    public double getBigramProbability(String bigram) {
         double d = 0.0;
         if (bigramProbabilities.containsKey(bigram)) {
             d = bigramProbabilities.get(bigram);
@@ -208,7 +208,7 @@ public class LanguageModel implements Serializable {
         return d;
     }
 
-    public static double getUnigramProbability(String unigram) {
+    public double getUnigramProbability(String unigram) {
         double d = 0.0;
         if (unigramProbabilities.containsKey(unigram)) {
             d = unigramProbabilities.get(unigram);
@@ -233,7 +233,7 @@ public class LanguageModel implements Serializable {
 
         List<String> words = new ArrayList<>(map.get(w));
 
-        Collections.sort(words, Comparators.myComparator(w));
+        Collections.sort(words, Comparators.myComparator(w, lm_));
 
         return new ArrayList<>(words);
     }

@@ -16,12 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static edu.stanford.cs276.RunCorrector.DIAMOND;
+
 public class CandidateGenerator implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private static CandidateGenerator cg_;
     public Map<String, Map<String, Integer>> editDistances = new HashMap<>();
-    private static final String DIAMOND = "\u2662";
     private static final int MAX_WORD_CANDIDATES = 3;
     private static final int MIN_WORD_CANDIDATES = 1;
 

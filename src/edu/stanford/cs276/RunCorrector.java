@@ -1,6 +1,7 @@
 package edu.stanford.cs276;
 
 import edu.stanford.cs276.util.Assert;
+import edu.stanford.cs276.util.Logger;
 import edu.stanford.cs276.util.Pair;
 
 import java.io.BufferedReader;
@@ -18,7 +19,11 @@ public class RunCorrector {
     public static NoisyChannelModel nsm;
 
     private static final double LAMBDA = 0.95;
-    private static final String DIAMOND = "\u2662";
+    public static final String DIAMOND = "\u2662";
+
+    private static int queryCounter = 0;
+    private static int successCounter = 0;
+
 
     public static void main(String[] args) throws Exception {
 
@@ -77,6 +82,7 @@ public class RunCorrector {
      * the most likely correction
      */
         while ((query = queriesFileReader.readLine()) != null) {
+            queryCounter++;
             String correctedQuery = query;
             /*
                * Your code here: currently the correctQuery and original query are the same
@@ -111,6 +117,10 @@ public class RunCorrector {
             Collections.sort(scores, (p1, p2) -> p1.getSecond().compareTo(p2.getSecond()));
             Collections.reverse(scores);
 
+            correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
+            System.out.println("o: " + query);
+            System.out.println("c: " + correctedQuery);
+
             if ("extra".equals(extra)) {
             /*
              * If you are going to implement something regarding to running the corrector,
@@ -125,7 +135,12 @@ public class RunCorrector {
             // and output the running accuracy
             if (goldFileReader != null) {
                 String goldQuery = goldFileReader.readLine();
+                if (goldQuery.equals(correctedQuery)) {
+                    successCounter++;
+                }
 
+                Logger.print(true, "g: " + goldQuery );
+                Logger.print(!goldQuery.equals(correctedQuery), "-----> missmatch!");
             /*
              * You can do any bookkeeping you wish here - track accuracy, track where your solution
              * diverges from the gold file, what type of errors are more common etc. This might
@@ -133,15 +148,22 @@ public class RunCorrector {
              */
             }
 
+            Logger.print(true, "--------------");
+
           /*
            * Output the corrected query.
            * IMPORTANT: In your final submission DO NOT add any additional print statements as
            * this will interfere with the autograder
            */
             //System.out.println(correctedQuery);
-            correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
-            System.out.println("~"+correctedQuery);
+            //correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
+            //System.out.println(correctedQuery);
         }
+
+        double successRate = (successCounter/(double)queryCounter)*100;
+        Logger.print(true, "Success Rate: %" + successRate);
+        Logger.print(true, "#Queries: " + queryCounter + ", #Correct: " + successCounter);
+
         queriesFileReader.close();
     }
 
