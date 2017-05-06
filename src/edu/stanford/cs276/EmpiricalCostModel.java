@@ -10,13 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
+import static edu.stanford.cs276.Config.PIPE;
+
 /**
  * Implement {@link EditCostModel} interface. Use the query corpus to learn a model
  * of errors that occur in our dataset of queries, and use this to compute P(R|Q).
  */
 public class EmpiricalCostModel implements EditCostModel {
-    
-    private static final String PIPE = "|";
+
     private static final long serialVersionUID = 1L;
 
     // stores the number of occurrences of a given change.
@@ -162,13 +163,13 @@ public class EmpiricalCostModel implements EditCostModel {
             }else if (clean_MAX < noise_MAX) {
                 // Check insertions
                 if (i==clean_MAX) {  //Last character is added to noise
-                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] +PIPE + cclean[i-1];
+                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
                     //Logger.print(true, "1 insertions chars: " + EmpericalNoise);
                     break;
                 }
 
                 if(cclean[i] != cnoisy[i]) {// First non match
-                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] +PIPE + cclean[i-1];
+                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
                     //Logger.print(true, "2 insertions chars: " + EmpericalNoise);
                     break;
                 }
@@ -176,7 +177,7 @@ public class EmpiricalCostModel implements EditCostModel {
             }else { // Length matches.  Check Replace, Transposition, Correct
                 if((cclean[i] != cnoisy[i]) && (i !=noise_MAX-1)){ // Not last character.  Check future for transpose
                     if (cclean[i+1] != cnoisy[i+1]) { // Transposition
-                        EmpericalNoise = "" + cnoisy[i] + cclean[i] +PIPE + cclean[i] + cnoisy[i];
+                        EmpericalNoise = "" + cnoisy[i] + cclean[i] + PIPE + cclean[i] + cnoisy[i];
                         //Logger.print(true, "1 Transposition chars: " + EmpericalNoise );
                         break;
                     }else {// Replace

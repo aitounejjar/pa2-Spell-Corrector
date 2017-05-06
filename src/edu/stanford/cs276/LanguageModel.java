@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static edu.stanford.cs276.Config.LAMBDA_1;
+
 /**
  * LanguageModel class constructs a language model from the training corpus.
  * This model will be used to score generated query candidates.
@@ -42,9 +44,7 @@ public class LanguageModel implements Serializable {
     private Map<String, Double> unigramProbabilities = new HashMap<>();
     private Map<String, Double> bigramProbabilities  = new HashMap<>();
 
-    private static final double LAMBDA = 0.1;
-
-  /*
+    /*
    * Feel free to add more members here (e.g., a data structure that stores bigrams)
    */
 
@@ -155,7 +155,7 @@ public class LanguageModel implements Serializable {
 
 
             // interpolate the result
-            double pInterpolated = (LAMBDA * unigramProbabilities.get(w2)) + ((1-LAMBDA) * p);
+            double pInterpolated = (LAMBDA_1 * unigramProbabilities.get(w2)) + ((1- LAMBDA_1) * p);
 
             bigramProbabilities.put(w1w2, pInterpolated);
         }

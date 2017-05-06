@@ -13,15 +13,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static edu.stanford.cs276.Config.DIAMOND;
+import static edu.stanford.cs276.Config.LAMBDA_2;
+
 
 public class RunCorrector {
 
     public static LanguageModel languageModel;
     public static NoisyChannelModel nsm;
-
-    private static final double MU = 1.3;
-    private static final double LAMBDA = 0.95;
-    public static final String DIAMOND = "\u2662";
 
     private static int queryCounter = 0;
     private static int successCounter = 0;
@@ -207,7 +206,7 @@ public class RunCorrector {
             double biProb = (languageModel.getBigramProbability(bigram));
             double uniProb = (languageModel.getUnigramProbability((w2)));
 
-            double pBigram = Math.log( (LAMBDA * uniProb) + ((1-LAMBDA)*biProb) );
+            double pBigram = Math.log( (LAMBDA_2 * uniProb) + ((1- LAMBDA_2)*biProb) );
 
             p += pBigram;
         }

@@ -1,15 +1,20 @@
 package edu.stanford.cs276;
 
 import edu.stanford.cs276.util.Assert;
+import edu.stanford.cs276.util.CartesianProduct;
 import edu.stanford.cs276.util.Comparators;
 import edu.stanford.cs276.util.DamerauLevenshtein;
 import edu.stanford.cs276.util.Logger;
 import edu.stanford.cs276.util.Pair;
 
 import java.io.Serializable;
-import java.util.*;
-
-import static edu.stanford.cs276.RunCorrector.DIAMOND;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class CandidateGenerator implements Serializable {
 
@@ -50,7 +55,6 @@ public class CandidateGenerator implements Serializable {
          * Your code here
          */
 
-        LinkedList cartesianProductQueue = new LinkedList();
         List<List<String>> lists = new ArrayList<>();
 
         String[] words = query.trim().split("\\s+");
@@ -92,7 +96,6 @@ public class CandidateGenerator implements Serializable {
             languageModelMostLikely = truncate(languageModelMostLikely);
             wAlternatives.addAll(languageModelMostLikely);
 
-
             // explicitly update edit distances
             for (String lmStrings : languageModelMostLikely) {
                 updateEditDistances(w, lmStrings, DamerauLevenshtein.editDistance(w, lmStrings));
@@ -111,66 +114,12 @@ public class CandidateGenerator implements Serializable {
 
             Logger.print(false, "w: " + w + " --> " + wAlternatives.toString());
 
-        }
+        } // end for loop
 
-        Logger.print(false, "cartesian product of " + lists.size() + " lists ... query = \"" + query + "\"");
 
-        cartesianProductQueue.addAll(lists);
-
-        // cartesian product over the sets
-        while (true) {
-            if (cartesianProductQueue.size() <= 1) {
-                break;
-            }
-
-            List<String> result = new ArrayList<>();
-            List<String> list1 = (List<String>) cartesianProductQueue.removeFirst();
-            List<String> list2 = (List<String>) cartesianProductQueue.removeFirst();
-
-            for (String s1 : list1) {
-                for (String s2 : list2) {
-                    result.add(s1 + DIAMOND + s2);
-                }
-            }
-
-            cartesianProductQueue.addFirst(result);
-        }
-
-        List<String> cartesianStrings = (List<String>) cartesianProductQueue.get(0);
-
-        Set<String> filteredOut = new HashSet<>();
-
-        for (String possibleQuery : cartesianStrings) {
-            int distance = 0;
-            String[] pq = possibleQuery.split(DIAMOND);
-
-            Logger.print(false, "-------");
-            Logger.print(false, "q: " + query);
-            Logger.print(false, "c: " + possibleQuery);
-
-            for (int i = 0; i < pq.length; ++i) {
-                String from = words[i];
-                String to = pq[i];
-
-                Assert.check(editDistances.containsKey(from), "Map of edit distances didn't contain the key '" + from + "'");
-                Assert.check(editDistances.get(from).get(to) != null, "Null edit distance found from '" + from + "' to '" + to + "'");
-                int d = editDistances.get(from).get(to);
-
-                distance += d;
-            }
-
-            if (distance > 3) {
-                filteredOut.add(possibleQuery);
-            }
-
-        }
-
-        cartesianStrings.removeAll(filteredOut);
-
-        Logger.print(false, "total number of possible queries: " + cartesianStrings.size());
-
-        Assert.check(cartesianStrings.size() > 0, "No candidates found for the query: " + query);
-        return new HashSet<>(cartesianStrings);
+        List<String> product = CartesianProduct.compute(lists);
+        Assert.check(product.size() > 0, "No candidates found for the query: " + query);
+        return new HashSet<>(product);
     }
 
     private Pair<Set<String>, Set<String>> getStringsWithinEditDistance1(LanguageModel lm, String w, String originalW, int passCount) {
