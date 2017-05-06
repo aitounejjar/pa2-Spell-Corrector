@@ -10,12 +10,8 @@ import java.io.FileReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static edu.stanford.cs276.Config.LAMBDA_1;
 
@@ -33,9 +29,6 @@ public class LanguageModel implements Serializable {
 
     Dictionary unigrams = new Dictionary();
     Dictionary bigrams = new Dictionary();
-
-    Map<String, Set<String>> w1w2_map = new HashMap<>();
-    Map<String, Set<String>> w2w1_map = new HashMap<>();
 
     // counts the total number of terms in the corpus
     private int termCounter = 1;
@@ -104,17 +97,6 @@ public class LanguageModel implements Serializable {
                     String bigram = previousWord + " " + w ;
 
                     bigrams.add(bigram);
-
-                    if (!w1w2_map.containsKey(previousWord)) {
-                        w1w2_map.put(previousWord, new HashSet<>());
-                    }
-                    w1w2_map.get(previousWord).add(w);
-
-
-                    if (!w2w1_map.containsKey(w)) {
-                        w2w1_map.put(w, new HashSet<>());
-                    }
-                    w2w1_map.get(w).add(previousWord);
 
                     previousWord = w;
                 }
@@ -214,26 +196,5 @@ public class LanguageModel implements Serializable {
         return d;
     }
 
-    public List<String> getWordsThatComeBefore(String w) {
-        return helper(w, w2w1_map);
-    }
-
-    public List<String> getWordsThatComeAfter(String w) {
-        return helper(w, w1w2_map);
-    }
-
-    private List<String> helper(String w, Map<String, Set<String>> map) {
-        List<String> list = new ArrayList<>();
-
-        if (!map.containsKey(w)) {
-            return list;
-        }
-
-        List<String> words = new ArrayList<>(map.get(w));
-
-        //Collections.sort(words, Comparators.myComparator(w, lm_));
-
-        return new ArrayList<>(words);
-    }
 
 }

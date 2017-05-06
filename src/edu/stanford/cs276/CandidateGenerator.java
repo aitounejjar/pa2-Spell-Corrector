@@ -3,7 +3,6 @@ package edu.stanford.cs276;
 import edu.stanford.cs276.util.Assert;
 import edu.stanford.cs276.util.CartesianProduct;
 import edu.stanford.cs276.util.Comparators;
-import edu.stanford.cs276.util.DamerauLevenshtein;
 import edu.stanford.cs276.util.Logger;
 import edu.stanford.cs276.util.Pair;
 
@@ -77,28 +76,9 @@ public class CandidateGenerator implements Serializable {
                 Logger.print(false, "dist2 alternatives of '" + w + "': " + wAlternatives.toString());
             }
 
-
-            List<String> languageModelMostLikely = new ArrayList<>();
             if (wAlternatives.isEmpty()) {
-                if (i + 1 < words.length) {
-                    List<String> temp = lm.getWordsThatComeBefore(words[i+1]);
-                    languageModelMostLikely.addAll(temp);
-                }
-
-                if (i > 0) {
-                    List<String> temp = lm.getWordsThatComeAfter(words[i-1]);
-                    languageModelMostLikely.addAll(temp);
-                }
-            }
-
-            // sort based edit distance
-            Collections.sort(languageModelMostLikely, Comparators.EDIT_DISTANCE_COMPARATOR(w));
-            languageModelMostLikely = truncate(languageModelMostLikely);
-            wAlternatives.addAll(languageModelMostLikely);
-
-            // explicitly update edit distances
-            for (String lmStrings : languageModelMostLikely) {
-                updateEditDistances(w, lmStrings, DamerauLevenshtein.editDistance(w, lmStrings));
+                // we have no choice but to put the miss-spelled word as an alternative to itself
+                wAlternatives.add(w);
             }
 
             // sort the alternatives
