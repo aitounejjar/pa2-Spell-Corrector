@@ -161,9 +161,7 @@ public class RunCorrector {
            * IMPORTANT: In your final submission DO NOT add any additional print statements as
            * this will interfere with the autograder
            */
-            //System.out.println(correctedQuery);
-            //correctedQuery = scores.get(0).getFirst().replace(DIAMOND, " ");
-            //System.out.println(correctedQuery);
+            System.out.println(correctedQuery);
         }
 
         double successRate = (successCounter/(double)queryCounter)*100;
