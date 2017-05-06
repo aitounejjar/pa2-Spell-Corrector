@@ -132,6 +132,7 @@ public class LanguageModel implements Serializable {
 
             // compute the bigram's probability
             int w1w2Count = map.get(w1w2);
+
             int w1Count = unigrams.map().get(w1);
             double p = w1w2Count/(double)w1Count;
 

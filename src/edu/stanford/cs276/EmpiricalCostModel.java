@@ -44,7 +44,7 @@ public class EmpiricalCostModel implements EditCostModel {
         String change = determineChange(original, R);
 
         double p = 0;
-        
+        System.out.println("af" + p);
 
         return 0.5;
     }
