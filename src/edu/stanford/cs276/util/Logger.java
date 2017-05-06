@@ -6,7 +6,7 @@ public class Logger {
     private Logger() { /* private constructor to defeat instantiation */ }
 
     // WARNING: this flag must always be set to false before submitting
-    private static boolean DEBUG_FLAG = true;
+    private static boolean DEBUG_FLAG = false;
 
     /**
      * Utility method that can be used throughout the application to print messages to standard output.
@@ -19,7 +19,7 @@ public class Logger {
      */
     public static void print(boolean doPrint, Object... objects) {
 
-        if ( DEBUG_FLAG && !doPrint) return;
+        if (!DEBUG_FLAG && !doPrint) return;
 
         for (Object o : objects) {
             System.out.print(o + " ");

@@ -9,11 +9,6 @@ public class UniformCostModel implements EditCostModel {
 
     private static final long serialVersionUID = 1L;
 
-    private static final double UNIFORM_EDIT_PROBABILITY = 0.01;
-
-    // probability that user entered the correct term (R = Q)
-    private static final double ZERO_EDIT_PROBABILITY = 0.95;
-
     @Override
     public double editProbability(String original, String R, int distance) {
 
