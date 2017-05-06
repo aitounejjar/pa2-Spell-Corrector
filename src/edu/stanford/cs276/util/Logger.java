@@ -19,7 +19,7 @@ public class Logger {
      */
     public static void print(boolean doPrint, Object... objects) {
 
-        if ( DEBUG_FLAG && !doPrint) return;
+        if (!DEBUG_FLAG && !doPrint) return;
 
         for (Object o : objects) {
             System.out.print(o + " ");
