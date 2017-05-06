@@ -40,7 +40,7 @@ public class EmpiricalCostModel implements EditCostModel {
          */
 
         // determine what has changed from the original string to the new one
-        String error = determineChange(original, R);
+        String error = determineChange(original, R, false);
 
         if (error == null || error.equals("")) {
             return ZERO_EDIT_PROBABILITY;
@@ -78,7 +78,7 @@ public class EmpiricalCostModel implements EditCostModel {
            * TODO: Your code here
            */
 
-          String change = determineChange(noisy, clean);
+          String change = determineChange(noisy, clean, true);
 
             char[] cleanChars = clean.toCharArray();
 
@@ -99,7 +99,7 @@ public class EmpiricalCostModel implements EditCostModel {
         System.out.println("Done.");
     }
 
-    private double  getEmpiricalProbability(String w1w2) {
+    private double getEmpiricalProbability(String w1w2) {
 
         Assert.check(w1w2.contains(PIPE), "Pipe character not found - Incorrect format");
 
@@ -118,12 +118,12 @@ public class EmpiricalCostModel implements EditCostModel {
     }
     
     // Update empirical term and increase count
-    private void storeEmpiricalCount(String EmpericalNoise){
+    private void storeEmpiricalCount(String empiricalNoise){
         int count = 0;
-        if (errorCounts.containsKey(EmpericalNoise)) {
-            count = errorCounts.get(EmpericalNoise);
+        if (errorCounts.containsKey(empiricalNoise)) {
+            count = errorCounts.get(empiricalNoise);
         }
-        errorCounts.put(EmpericalNoise, count+1);
+        errorCounts.put(empiricalNoise, count+1);
     }
 
     // Update bigram term and increase count
@@ -135,7 +135,7 @@ public class EmpiricalCostModel implements EditCostModel {
         kgramCounts.put(bi_gram, count+1);
     }
 
-    private String determineChange(String from, String to) {
+    private String determineChange(String from, String to, boolean updateMap) {
         char[] cnoisy = from.toCharArray();
         char[] cclean = to.toCharArray();
 
@@ -150,13 +150,17 @@ public class EmpiricalCostModel implements EditCostModel {
             if (i<clean_MAX) {
                 //Store all character unigrams in hash to use as denominator
                 String uni_gram = "" + cclean[i];
-                updateKGramCounts(uni_gram);
+                if (updateMap) {
+                    updateKGramCounts(uni_gram);
+                }
 
                 if (i > 0) {
                     //Store all character bigrams in hash to use as denominator
 
                     String bi_gram = "" + cclean[i - 1] + cclean[i];
-                    updateKGramCounts(bi_gram);
+                    if (updateMap) {
+                        updateKGramCounts(bi_gram);
+                    }
 
                 }
             }
@@ -209,6 +213,8 @@ public class EmpiricalCostModel implements EditCostModel {
             }
             i++;
         }// while loop
+
+        storeEmpiricalCount(empiricalNoise);
 
         return empiricalNoise;
     }
