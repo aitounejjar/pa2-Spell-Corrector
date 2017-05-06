@@ -1,7 +1,6 @@
 package edu.stanford.cs276;
 
 import edu.stanford.cs276.util.Assert;
-import edu.stanford.cs276.util.Logger;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -41,12 +40,29 @@ public class EmpiricalCostModel implements EditCostModel {
          */
 
         // determine what has changed from the original string to the new one
-        String change = determineChange(original, R);
+        String error = determineChange(original, R);
+
+        if (error == null || error.equals("")) {
+            return ZERO_EDIT_PROBABILITY;
+        }
+
+        String correction = error.split(PIPE)[1];
 
         double p = 0;
-        
 
-        return 0.5;
+        if (!errorCounts.containsKey(error) || !kgramCounts.containsKey(correction)) {
+            // this error wasn't observed before, we treat it uniformly
+            p = Math.pow(UNIFORM_EDIT_PROBABILITY, distance);
+            if (original.equals(R)) {
+                return (ZERO_EDIT_PROBABILITY);
+            }
+        } else {
+            int count = errorCounts.get(error);
+            int correctionCount = kgramCounts.get(correction);
+            p = count / (double)correctionCount;
+        }
+
+        return p;
     }
 
     public EmpiricalCostModel(String editsFile) throws IOException {
@@ -56,8 +72,8 @@ public class EmpiricalCostModel implements EditCostModel {
         while ((line = input.readLine()) != null) {
             Scanner lineSc = new Scanner(line);
             lineSc.useDelimiter("\t");
-            String noisy = lineSc.next();
-            String clean = lineSc.next();
+            String noisy = "X" + lineSc.next();
+            String clean = "X" + lineSc.next();
           /*
            * TODO: Your code here
            */
@@ -81,8 +97,6 @@ public class EmpiricalCostModel implements EditCostModel {
 
         input.close();
         System.out.println("Done.");
-
-        Logger.print(true, "size of k-grams " + kgramCounts.size());
     }
 
     private double  getEmpiricalProbability(String w1w2) {
@@ -125,11 +139,11 @@ public class EmpiricalCostModel implements EditCostModel {
         char[] cnoisy = from.toCharArray();
         char[] cclean = to.toCharArray();
 
-        int noise_MAX = cnoisy.length;
-        int clean_MAX = cclean.length;
+        int noise_MAX = cnoisy.length - 1;
+        int clean_MAX = cclean.length - 1;
         int i=0;
 
-        String EmpericalNoise = null;
+        String empiricalNoise = null;
 
         while (i <= noise_MAX || i <= clean_MAX) {
 
@@ -150,43 +164,43 @@ public class EmpiricalCostModel implements EditCostModel {
             if (clean_MAX > noise_MAX) {
                 //Check deletions
                 if (i==noise_MAX) {  // Last character is deleted
-                    EmpericalNoise = "" + cnoisy[i - 1] + PIPE + cclean[i-1] + cclean[i];
-                    //Logger.print(true, "1 deletion chars: " + EmpericalNoise);
+                    empiricalNoise = "" + cnoisy[i - 1] + PIPE + cclean[i-1] + cclean[i];
+                    //Logger.print(true, "1 deletion chars: " + empiricalNoise);
                     break;
                 }
                 if(cclean[i] != cnoisy[i]) {// First non match
-                    EmpericalNoise = "" + cnoisy[i - 1] + PIPE + cclean[i-1] + cclean[i];
-                    //Logger.print(true, "2 deletion chars: " + EmpericalNoise);
+                    empiricalNoise = "" + cnoisy[i - 1] + PIPE + cclean[i-1] + cclean[i];
+                    //Logger.print(true, "2 deletion chars: " + empiricalNoise);
                     break;
                 }
 
             }else if (clean_MAX < noise_MAX) {
                 // Check insertions
                 if (i==clean_MAX) {  //Last character is added to noise
-                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
-                    //Logger.print(true, "1 insertions chars: " + EmpericalNoise);
+                    empiricalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
+                    //Logger.print(true, "1 insertions chars: " + empiricalNoise);
                     break;
                 }
 
                 if(cclean[i] != cnoisy[i]) {// First non match
-                    EmpericalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
-                    //Logger.print(true, "2 insertions chars: " + EmpericalNoise);
+                    empiricalNoise = "" + cnoisy[i - 1] + cnoisy[i] + PIPE + cclean[i-1];
+                    //Logger.print(true, "2 insertions chars: " + empiricalNoise);
                     break;
                 }
 
             }else { // Length matches.  Check Replace, Transposition, Correct
                 if((cclean[i] != cnoisy[i]) && (i !=noise_MAX-1)){ // Not last character.  Check future for transpose
                     if (cclean[i+1] != cnoisy[i+1]) { // Transposition
-                        EmpericalNoise = "" + cnoisy[i] + cclean[i] + PIPE + cclean[i] + cnoisy[i];
-                        //Logger.print(true, "1 Transposition chars: " + EmpericalNoise );
+                        empiricalNoise = "" + cnoisy[i] + cclean[i] + PIPE + cclean[i] + cnoisy[i];
+                        //Logger.print(true, "1 Transposition chars: " + empiricalNoise );
                         break;
                     }else {// Replace
-                        EmpericalNoise = "" + cnoisy[i] + PIPE + cclean[i];
-                        //Logger.print(true, "1 Replace chars: " +  EmpericalNoise );
+                        empiricalNoise = "" + cnoisy[i] + PIPE + cclean[i];
+                        //Logger.print(true, "1 Replace chars: " +  empiricalNoise );
                         break;
                     }
                 }else if ( (cclean[i] != cnoisy[i]) && (i == noise_MAX-1))  { //Last character.  Must be replace
-                    EmpericalNoise = "" + cnoisy[i] + PIPE + cclean[i];
+                    empiricalNoise = "" + cnoisy[i] + PIPE + cclean[i];
                     break;
                 }else if ((cclean[i] == cnoisy[i]) && (i == noise_MAX-1)){ // No errors
                     //Logger.print(true, "No Errors: ");
@@ -196,8 +210,6 @@ public class EmpiricalCostModel implements EditCostModel {
             i++;
         }// while loop
 
-        Assert.check(EmpericalNoise.contains(PIPE), "Pipe character not found - Incorrect format for the change between '" + from + "' and '" + to +"'");
-
-        return EmpericalNoise;
+        return empiricalNoise;
     }
 }
